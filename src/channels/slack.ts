@@ -11,6 +11,34 @@ import { Channel, NewMessage, OnChatMetadata, OnInboundMessage, RegisteredGroup 
 
 const AUDIO_EXTENSIONS = new Set(['.ogg', '.oga', '.mp3', '.m4a', '.wav', '.webm', '.mp4']);
 
+/**
+ * Convert common Markdown formatting to Slack mrkdwn.
+ * The agent is instructed to use mrkdwn, but Claude sometimes slips
+ * back to Markdown habits. This catches the most common mismatches.
+ */
+function markdownToMrkdwn(text: string): string {
+  // Preserve code blocks and inline code from modification
+  const preserved: string[] = [];
+  let result = text.replace(/```[\s\S]*?```|`[^`]+`/g, (match) => {
+    preserved.push(match);
+    return `\x00P${preserved.length - 1}\x00`;
+  });
+
+  // **bold** → *bold*
+  result = result.replace(/\*\*(.+?)\*\*/g, '*$1*');
+
+  // ## Heading → *Heading*
+  result = result.replace(/^#{1,6}\s+(.+)$/gm, '*$1*');
+
+  // [text](url) → <url|text>
+  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<$2|$1>');
+
+  // Restore preserved spans
+  result = result.replace(/\x00P(\d+)\x00/g, (_, i) => preserved[parseInt(i)]);
+
+  return result;
+}
+
 export interface SlackChannelOpts {
   onMessage: OnInboundMessage;
   onChatMetadata: OnChatMetadata;
@@ -252,13 +280,15 @@ export class SlackChannel implements Channel {
       const parsed = this.parseJid(jid);
       if (!parsed) return;
 
+      const formatted = markdownToMrkdwn(text);
+
       if (parsed.threadTs) {
         // Post to existing thread
         const result = await this.app.client.chat.postMessage({
           token: SLACK_BOT_TOKEN,
           channel: parsed.channel,
           thread_ts: parsed.threadTs,
-          text,
+          text: formatted,
         });
         // Track bot message for reaction routing
         if (result.ts) {
@@ -274,7 +304,7 @@ export class SlackChannel implements Channel {
             token: SLACK_BOT_TOKEN,
             channel: parsed.channel,
             thread_ts: anchorTs,
-            text,
+            text: formatted,
           });
           // Track thread
           const threadJid = `slack:${parsed.channel}:${anchorTs}`;
@@ -292,7 +322,7 @@ export class SlackChannel implements Channel {
           await this.app.client.chat.postMessage({
             token: SLACK_BOT_TOKEN,
             channel: parsed.channel,
-            text,
+            text: formatted,
           });
         }
       }

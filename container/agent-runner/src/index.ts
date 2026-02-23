@@ -188,7 +188,7 @@ function createPreCompactHook(assistantName?: string): HookCallback {
 // Secrets to strip from Bash tool subprocess environments.
 // These are needed by claude-code for API auth but should never
 // be visible to commands Kit runs.
-const SECRET_ENV_VARS = ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'LINEAR_API_KEY'];
+const SECRET_ENV_VARS = ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'LINEAR_API_KEY', 'NOTION_TOKEN', 'TLDV_API_KEY'];
 
 function createSanitizeBashHook(): HookCallback {
   return async (input, _toolUseId, _context) => {
@@ -433,7 +433,10 @@ async function runQuery(
         'TodoWrite', 'ToolSearch', 'Skill',
         'NotebookEdit',
         'mcp__nanoclaw__*',
-        'mcp__linear__*'
+        'mcp__linear__*',
+        'mcp__google_calendar__*',
+        'mcp__notion__*',
+        'mcp__tldv__*'
       ],
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
@@ -455,6 +458,34 @@ async function runQuery(
             args: [] as string[],
             env: {
               LINEAR_API_KEY: sdkEnv.LINEAR_API_KEY,
+            },
+          },
+        } : {}),
+        ...(fs.existsSync('/home/node/.google-calendar-mcp/gcp-oauth.keys.json') ? {
+          google_calendar: {
+            command: 'google-calendar-mcp',
+            args: [] as string[],
+            env: {
+              GOOGLE_OAUTH_CREDENTIALS: '/home/node/.google-calendar-mcp/gcp-oauth.keys.json',
+              GOOGLE_CALENDAR_MCP_TOKEN_PATH: '/home/node/.google-calendar-mcp/tokens.json',
+            },
+          },
+        } : {}),
+        ...(sdkEnv.NOTION_TOKEN ? {
+          notion: {
+            command: 'npx',
+            args: ['-y', '@notionhq/notion-mcp-server'],
+            env: {
+              NOTION_TOKEN: sdkEnv.NOTION_TOKEN,
+            },
+          },
+        } : {}),
+        ...(sdkEnv.TLDV_API_KEY ? {
+          tldv: {
+            command: 'node',
+            args: ['/opt/tldv-mcp/dist/index.js'],
+            env: {
+              TLDV_API_KEY: sdkEnv.TLDV_API_KEY,
             },
           },
         } : {}),

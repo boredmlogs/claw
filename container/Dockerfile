@@ -30,7 +30,11 @@ ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install agent-browser, claude-code, and MCP servers globally
-RUN npm install -g agent-browser @anthropic-ai/claude-code linear-mcp-server
+RUN npm install -g agent-browser @anthropic-ai/claude-code linear-mcp-server @cocal/google-calendar-mcp @notionhq/notion-mcp-server
+
+# Install tl;dv MCP server from source (no npm package published)
+RUN git clone --depth 1 https://github.com/tldv-public/tldv-mcp-server.git /opt/tldv-mcp && \
+    cd /opt/tldv-mcp && npm install && npm run build
 
 # Create app directory
 WORKDIR /app
