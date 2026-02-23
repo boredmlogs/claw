@@ -158,6 +158,20 @@ function buildVolumeMounts(
     readonly: false,
   });
 
+  // Per-JID IPC input: shadow-mount a JID-specific input directory so
+  // concurrent containers (root channel vs threads) don't steal each other's
+  // piped messages. The container polls /workspace/ipc/input/ unchanged.
+  if (chatJid) {
+    const sanitizedJid = chatJid.replace(/[^a-zA-Z0-9]/g, '-');
+    const jidInputDir = path.join(groupIpcDir, 'input', sanitizedJid);
+    fs.mkdirSync(jidInputDir, { recursive: true });
+    mounts.push({
+      hostPath: jidInputDir,
+      containerPath: '/workspace/ipc/input',
+      readonly: false,
+    });
+  }
+
   // Copy agent-runner source into a per-group writable location so agents
   // can customize it (add tools, change behavior) without affecting other
   // groups. Recompiled on container startup via entrypoint.sh.

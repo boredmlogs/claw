@@ -129,7 +129,7 @@ export class SlackChannel implements Channel {
     logger.debug({ event: JSON.stringify(event).slice(0, 500) }, 'Slack message event received');
 
     // Skip bot messages and message_changed subtypes
-    if (event.bot_id || event.user === this.botUserId) return;
+    if (event.bot_id || event.bot_profile || event.app_id || event.user === this.botUserId) return;
     if (event.subtype && event.subtype !== 'file_share') return;
 
     const channel = event.channel as string;
