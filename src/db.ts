@@ -288,12 +288,23 @@ export function getNewMessages(
   if (jids.length === 0) return { messages: [], newTimestamp: lastTimestamp };
 
   const placeholders = jids.map(() => '?').join(',');
+
+  // Also fetch messages for thread JIDs belonging to registered Slack channels
+  const slackPrefixes = jids
+    .filter((j) => j.startsWith('slack:'))
+    .map((j) => `${j}:%`);
+
+  const likeClauses = slackPrefixes.map(() => 'chat_jid LIKE ?').join(' OR ');
+  const whereClause = slackPrefixes.length > 0
+    ? `(chat_jid IN (${placeholders}) OR ${likeClauses})`
+    : `chat_jid IN (${placeholders})`;
+
   // Filter bot messages using both the is_bot_message flag AND the content
   // prefix as a backstop for messages written before the migration ran.
   const sql = `
     SELECT id, chat_jid, sender, sender_name, content, timestamp
     FROM messages
-    WHERE timestamp > ? AND chat_jid IN (${placeholders})
+    WHERE timestamp > ? AND ${whereClause}
       AND is_bot_message = 0 AND content NOT LIKE ?
       AND content != '' AND content IS NOT NULL
     ORDER BY timestamp
@@ -301,7 +312,7 @@ export function getNewMessages(
 
   const rows = db
     .prepare(sql)
-    .all(lastTimestamp, ...jids, `${botPrefix}:%`) as NewMessage[];
+    .all(lastTimestamp, ...jids, ...slackPrefixes, `${botPrefix}:%`) as NewMessage[];
 
   let newTimestamp = lastTimestamp;
   for (const row of rows) {

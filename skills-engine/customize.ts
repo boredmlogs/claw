@@ -89,6 +89,11 @@ export function commitCustomize(): void {
     const basePath = path.join(baseDir, relativePath);
     const currentPath = path.join(cwd, relativePath);
 
+    // Verify base file is a regular file if it exists
+    if (fs.existsSync(basePath) && !fs.statSync(basePath).isFile()) {
+      throw new Error(`diff error for ${relativePath}: base path is not a regular file`);
+    }
+
     // Use /dev/null if either side doesn't exist
     const oldPath = fs.existsSync(basePath) ? basePath : '/dev/null';
     const newPath = fs.existsSync(currentPath) ? currentPath : '/dev/null';

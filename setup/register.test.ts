@@ -35,7 +35,7 @@ describe('parameterized SQL registration', () => {
       `INSERT OR REPLACE INTO registered_groups
        (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger)
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,
-    ).run('123@g.us', 'Test Group', 'test-group', '@Andy', '2024-01-01T00:00:00.000Z', 1);
+    ).run('123@g.us', 'Test Group', 'test-group', '@Lauren', '2024-01-01T00:00:00.000Z', 1);
 
     const row = db.prepare('SELECT * FROM registered_groups WHERE jid = ?').get('123@g.us') as {
       jid: string;
@@ -48,7 +48,7 @@ describe('parameterized SQL registration', () => {
     expect(row.jid).toBe('123@g.us');
     expect(row.name).toBe('Test Group');
     expect(row.folder).toBe('test-group');
-    expect(row.trigger_pattern).toBe('@Andy');
+    expect(row.trigger_pattern).toBe('@Lauren');
     expect(row.requires_trigger).toBe(1);
   });
 
@@ -59,7 +59,7 @@ describe('parameterized SQL registration', () => {
       `INSERT OR REPLACE INTO registered_groups
        (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger)
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,
-    ).run('456@g.us', name, 'obriens-group', '@Andy', '2024-01-01T00:00:00.000Z', 0);
+    ).run('456@g.us', name, 'obriens-group', '@Lauren', '2024-01-01T00:00:00.000Z', 0);
 
     const row = db.prepare('SELECT name FROM registered_groups WHERE jid = ?').get('456@g.us') as {
       name: string;
@@ -75,7 +75,7 @@ describe('parameterized SQL registration', () => {
       `INSERT OR REPLACE INTO registered_groups
        (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger)
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,
-    ).run(maliciousJid, 'Evil', 'evil', '@Andy', '2024-01-01T00:00:00.000Z', 1);
+    ).run(maliciousJid, 'Evil', 'evil', '@Lauren', '2024-01-01T00:00:00.000Z', 1);
 
     // Table should still exist and have the row
     const count = db.prepare('SELECT COUNT(*) as count FROM registered_groups').get() as {
@@ -92,7 +92,7 @@ describe('parameterized SQL registration', () => {
       `INSERT OR REPLACE INTO registered_groups
        (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger)
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,
-    ).run('789@s.whatsapp.net', 'Personal', 'main', '@Andy', '2024-01-01T00:00:00.000Z', 0);
+    ).run('789@s.whatsapp.net', 'Personal', 'main', '@Lauren', '2024-01-01T00:00:00.000Z', 0);
 
     const row = db.prepare('SELECT requires_trigger FROM registered_groups WHERE jid = ?')
       .get('789@s.whatsapp.net') as { requires_trigger: number };
@@ -107,7 +107,7 @@ describe('parameterized SQL registration', () => {
        VALUES (?, ?, ?, ?, ?, NULL, ?)`,
     );
 
-    stmt.run('123@g.us', 'Original', 'main', '@Andy', '2024-01-01T00:00:00.000Z', 1);
+    stmt.run('123@g.us', 'Original', 'main', '@Lauren', '2024-01-01T00:00:00.000Z', 1);
     stmt.run('123@g.us', 'Updated', 'main', '@Bot', '2024-02-01T00:00:00.000Z', 0);
 
     const rows = db.prepare('SELECT * FROM registered_groups').all();
@@ -122,27 +122,27 @@ describe('parameterized SQL registration', () => {
 
 describe('file templating', () => {
   it('replaces assistant name in CLAUDE.md content', () => {
-    let content = '# Andy\n\nYou are Andy, a personal assistant.';
+    let content = '# Lauren\n\nYou are Lauren, a personal assistant.';
 
-    content = content.replace(/^# Andy$/m, '# Nova');
-    content = content.replace(/You are Andy/g, 'You are Nova');
+    content = content.replace(/^# Lauren$/m, '# Nova');
+    content = content.replace(/You are Lauren/g, 'You are Nova');
 
     expect(content).toBe('# Nova\n\nYou are Nova, a personal assistant.');
   });
 
   it('handles names with special regex characters', () => {
-    let content = '# Andy\n\nYou are Andy.';
+    let content = '# Lauren\n\nYou are Lauren.';
 
     const newName = 'C.L.A.U.D.E';
-    content = content.replace(/^# Andy$/m, `# ${newName}`);
-    content = content.replace(/You are Andy/g, `You are ${newName}`);
+    content = content.replace(/^# Lauren$/m, `# ${newName}`);
+    content = content.replace(/You are Lauren/g, `You are ${newName}`);
 
     expect(content).toContain('# C.L.A.U.D.E');
     expect(content).toContain('You are C.L.A.U.D.E.');
   });
 
   it('updates .env ASSISTANT_NAME line', () => {
-    let envContent = 'SOME_KEY=value\nASSISTANT_NAME="Andy"\nOTHER=test';
+    let envContent = 'SOME_KEY=value\nASSISTANT_NAME="Lauren"\nOTHER=test';
 
     envContent = envContent.replace(
       /^ASSISTANT_NAME=.*$/m,

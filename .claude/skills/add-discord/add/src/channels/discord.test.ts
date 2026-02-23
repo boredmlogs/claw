@@ -4,8 +4,8 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 // Mock config
 vi.mock('../config.js', () => ({
-  ASSISTANT_NAME: 'Andy',
-  TRIGGER_PATTERN: /^@Andy\b/i,
+  ASSISTANT_NAME: 'Lauren',
+  TRIGGER_PATTERN: /^@Lauren\b/i,
 }));
 
 // Mock logger
@@ -108,7 +108,7 @@ function createTestOpts(
       'dc:1234567890123456': {
         name: 'Test Server #general',
         folder: 'test-server',
-        trigger: '@Andy',
+        trigger: '@Lauren',
         added_at: '2024-01-01T00:00:00.000Z',
       },
     })),
@@ -346,7 +346,7 @@ describe('DiscordChannel', () => {
           'dc:1234567890123456': {
             name: 'DM',
             folder: 'dm',
-            trigger: '@Andy',
+            trigger: '@Lauren',
             added_at: '2024-01-01T00:00:00.000Z',
           },
         })),
@@ -406,7 +406,7 @@ describe('DiscordChannel', () => {
       expect(opts.onMessage).toHaveBeenCalledWith(
         'dc:1234567890123456',
         expect.objectContaining({
-          content: '@Andy what time is it?',
+          content: '@Lauren what time is it?',
         }),
       );
     });
@@ -417,18 +417,18 @@ describe('DiscordChannel', () => {
       await channel.connect();
 
       const msg = createMessage({
-        content: '@Andy hello <@999888777>',
+        content: '@Lauren hello <@999888777>',
         mentionsBotId: true,
         guildName: 'Server',
       });
       await triggerMessage(msg);
 
-      // Should NOT prepend @Andy — already starts with trigger
+      // Should NOT prepend @Lauren — already starts with trigger
       // But the <@botId> should still be stripped
       expect(opts.onMessage).toHaveBeenCalledWith(
         'dc:1234567890123456',
         expect.objectContaining({
-          content: '@Andy hello',
+          content: '@Lauren hello',
         }),
       );
     });
@@ -467,7 +467,7 @@ describe('DiscordChannel', () => {
       expect(opts.onMessage).toHaveBeenCalledWith(
         'dc:1234567890123456',
         expect.objectContaining({
-          content: '@Andy check this',
+          content: '@Lauren check this',
         }),
       );
     });

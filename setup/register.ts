@@ -30,7 +30,7 @@ function parseArgs(args: string[]): RegisterArgs {
     trigger: '',
     folder: '',
     requiresTrigger: true,
-    assistantName: 'Andy',
+    assistantName: 'Lauren',
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -40,7 +40,7 @@ function parseArgs(args: string[]): RegisterArgs {
       case '--trigger': result.trigger = args[++i] || ''; break;
       case '--folder': result.folder = args[++i] || ''; break;
       case '--no-trigger-required': result.requiresTrigger = false; break;
-      case '--assistant-name': result.assistantName = args[++i] || 'Andy'; break;
+      case '--assistant-name': result.assistantName = args[++i] || 'Lauren'; break;
     }
   }
 
@@ -105,8 +105,8 @@ export async function run(args: string[]): Promise<void> {
 
   // Update assistant name in CLAUDE.md files if different from default
   let nameUpdated = false;
-  if (parsed.assistantName !== 'Andy') {
-    logger.info({ from: 'Andy', to: parsed.assistantName }, 'Updating assistant name');
+  if (parsed.assistantName !== 'Lauren') {
+    logger.info({ from: 'Lauren', to: parsed.assistantName }, 'Updating assistant name');
 
     const mdFiles = [
       path.join(projectRoot, 'groups', 'global', 'CLAUDE.md'),
@@ -116,8 +116,8 @@ export async function run(args: string[]): Promise<void> {
     for (const mdFile of mdFiles) {
       if (fs.existsSync(mdFile)) {
         let content = fs.readFileSync(mdFile, 'utf-8');
-        content = content.replace(/^# Andy$/m, `# ${parsed.assistantName}`);
-        content = content.replace(/You are Andy/g, `You are ${parsed.assistantName}`);
+        content = content.replace(/^# Lauren$/m, `# ${parsed.assistantName}`);
+        content = content.replace(/You are Lauren/g, `You are ${parsed.assistantName}`);
         fs.writeFileSync(mdFile, content);
         logger.info({ file: mdFile }, 'Updated CLAUDE.md');
       }

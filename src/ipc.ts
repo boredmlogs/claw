@@ -13,7 +13,7 @@ import { AvailableGroup } from './container-runner.js';
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
-import { RegisteredGroup } from './types.js';
+import { Channel, RegisteredGroup } from './types.js';
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
@@ -27,6 +27,7 @@ export interface IpcDeps {
     availableGroups: AvailableGroup[],
     registeredJids: Set<string>,
   ) => void;
+  findChannel: (jid: string) => Channel | undefined;
 }
 
 let ipcWatcherRunning = false;
@@ -89,6 +90,21 @@ export function startIpcWatcher(deps: IpcDeps): void {
                     { chatJid: data.chatJid, sourceGroup },
                     'Unauthorized IPC message attempt blocked',
                   );
+                }
+              } else if (data.type === 'file' && data.chatJid && data.filePath) {
+                const ch = deps.findChannel(data.chatJid);
+                if (ch && 'sendFile' in ch) {
+                  await (ch as Channel & { sendFile: (jid: string, filePath: string, title?: string) => Promise<void> })
+                    .sendFile(data.chatJid, data.filePath, data.title);
+                  logger.info({ chatJid: data.chatJid, filePath: data.filePath, sourceGroup }, 'IPC file sent');
+                }
+              } else if (data.type === 'reaction' && data.chatJid && data.messageTs && data.emoji) {
+                const ch = deps.findChannel(data.chatJid);
+                if (ch && 'addReaction' in ch) {
+                  const channelId = data.chatJid.split(':')[1];
+                  await (ch as Channel & { addReaction: (channel: string, messageTs: string, emoji: string) => Promise<void> })
+                    .addReaction(channelId, data.messageTs, data.emoji);
+                  logger.info({ chatJid: data.chatJid, emoji: data.emoji, sourceGroup }, 'IPC reaction sent');
                 }
               }
               fs.unlinkSync(filePath);

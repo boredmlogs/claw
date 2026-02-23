@@ -246,14 +246,14 @@ server.tool(
 
 server.tool(
   'register_group',
-  `Register a new WhatsApp group so the agent can respond to messages there. Main group only.
+  `Register a new channel so the agent can respond to messages there. Main group only.
 
-Use available_groups.json to find the JID for a group. The folder name should be lowercase with hyphens (e.g., "family-chat").`,
+Use available_groups.json to find the JID for a channel. The folder name should be lowercase with hyphens (e.g., "family-chat").`,
   {
-    jid: z.string().describe('The WhatsApp JID (e.g., "120363336345536173@g.us")'),
+    jid: z.string().describe('The channel JID (e.g., "slack:C1234567890")'),
     name: z.string().describe('Display name for the group'),
     folder: z.string().describe('Folder name for group files (lowercase, hyphens, e.g., "family-chat")'),
-    trigger: z.string().describe('Trigger word (e.g., "@Andy")'),
+    trigger: z.string().describe('Trigger word (e.g., "@Lauren")'),
   },
   async (args) => {
     if (!isMain) {
@@ -277,6 +277,50 @@ Use available_groups.json to find the JID for a group. The folder name should be
     return {
       content: [{ type: 'text' as const, text: `Group "${args.name}" registered. It will start receiving messages immediately.` }],
     };
+  },
+);
+
+server.tool(
+  'send_reaction',
+  'Add an emoji reaction to a specific message. Slack only. Use this to acknowledge messages, indicate status, or provide quick feedback without sending a text reply.',
+  {
+    message_ts: z.string().describe('The message timestamp to react to (from the message event)'),
+    emoji: z.string().describe('Emoji name without colons (e.g., "thumbsup", "eyes", "white_check_mark", "fire")'),
+  },
+  async (args) => {
+    const data = {
+      type: 'reaction',
+      chatJid,
+      messageTs: args.message_ts,
+      emoji: args.emoji,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(MESSAGES_DIR, data);
+
+    return { content: [{ type: 'text' as const, text: `Reaction :${args.emoji}: sent.` }] };
+  },
+);
+
+server.tool(
+  'send_file',
+  'Upload a file to the chat. Write the file to /workspace/ipc/files/ first, then use this tool to send it.',
+  {
+    file_path: z.string().describe('Path to the file (inside /workspace/ipc/files/)'),
+    title: z.string().optional().describe('Display title for the file'),
+  },
+  async (args) => {
+    const data = {
+      type: 'file',
+      chatJid,
+      filePath: args.file_path,
+      title: args.title,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(MESSAGES_DIR, data);
+
+    return { content: [{ type: 'text' as const, text: `File "${args.title || args.file_path}" sent.` }] };
   },
 );
 
