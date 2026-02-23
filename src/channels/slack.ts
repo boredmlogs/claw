@@ -52,10 +52,8 @@ export class SlackChannel implements Channel {
   private connected = false;
   private botUserId = '';
   private outgoingQueue: Array<{ jid: string; text: string }> = [];
-  // Queue of pending mention timestamps per channel (FIFO)
-  private pendingAnchors: Map<string, string[]> = new Map();
-  // anchorTs → threadJid — tracks threads we've created
-  private threadAnchors: Map<string, string> = new Map();
+  // Tracks @mention ts values awaiting their first ✅ reaction
+  private mentionAnchors: Set<string> = new Set();
   // Maps any messageTs → threadTs for messages seen in threads
   private messageThreadMap: Map<string, string> = new Map();
   private opts: SlackChannelOpts;
@@ -90,7 +88,7 @@ export class SlackChannel implements Channel {
       const channelJid = `slack:${channel}`;
 
       // Determine JID: look up which thread this message belongs to
-      const threadTs = this.messageThreadMap.get(itemTs) || (this.threadAnchors.has(itemTs) ? itemTs : undefined);
+      const threadTs = this.messageThreadMap.get(itemTs);
       const jid = threadTs ? `slack:${channel}:${threadTs}` : channelJid;
 
       const timestamp = new Date(parseFloat(event.event_ts) * 1000).toISOString();
@@ -204,15 +202,16 @@ export class SlackChannel implements Channel {
     );
     if (!isRegistered) return;
 
-    // React 👀 on @mention messages (top-level only)
+    // React 👀 on @mention messages (top-level only) and route to a thread JID
     if (hasMention && !threadTs) {
       this.addReaction(channel, messageTs, 'eyes').catch((err) =>
         logger.warn({ err }, 'Failed to add 👀 reaction'),
       );
-      // Track as pending anchor for thread creation
-      const queue = this.pendingAnchors.get(channel) || [];
-      queue.push(messageTs);
-      this.pendingAnchors.set(channel, queue);
+      // Assign a thread JID so all agent responses post as thread replies
+      jid = `slack:${channel}:${messageTs}`;
+      this.mentionAnchors.add(messageTs);
+      this.messageThreadMap.set(messageTs, messageTs);
+      this.opts.onChatMetadata(jid, timestamp, undefined, 'slack', true);
     }
 
     // Build message
@@ -283,7 +282,7 @@ export class SlackChannel implements Channel {
       const formatted = markdownToMrkdwn(text);
 
       if (parsed.threadTs) {
-        // Post to existing thread
+        // Post to thread (both existing threads and mention-created threads)
         const result = await this.app.client.chat.postMessage({
           token: SLACK_BOT_TOKEN,
           channel: parsed.channel,
@@ -294,37 +293,19 @@ export class SlackChannel implements Channel {
         if (result.ts) {
           this.messageThreadMap.set(result.ts, parsed.threadTs);
         }
-      } else {
-        // First response to a channel mention — start a thread
-        const queue = this.pendingAnchors.get(parsed.channel);
-        const anchorTs = queue?.shift();
-        if (anchorTs) {
-          if (!queue || queue.length === 0) this.pendingAnchors.delete(parsed.channel);
-          const result = await this.app.client.chat.postMessage({
-            token: SLACK_BOT_TOKEN,
-            channel: parsed.channel,
-            thread_ts: anchorTs,
-            text: formatted,
-          });
-          // Track thread
-          const threadJid = `slack:${parsed.channel}:${anchorTs}`;
-          this.threadAnchors.set(anchorTs, threadJid);
-          // Track bot message for reaction routing
-          if (result.ts) {
-            this.messageThreadMap.set(result.ts, anchorTs);
-          }
-          // React ✅ on anchor message
-          this.addReaction(parsed.channel, anchorTs, 'white_check_mark').catch((err) =>
+        // First response to an @mention thread gets ✅
+        if (this.mentionAnchors.delete(parsed.threadTs)) {
+          this.addReaction(parsed.channel, parsed.threadTs, 'white_check_mark').catch((err) =>
             logger.warn({ err }, 'Failed to add ✅ reaction'),
           );
-        } else {
-          // No pending anchor — just post to channel
-          await this.app.client.chat.postMessage({
-            token: SLACK_BOT_TOKEN,
-            channel: parsed.channel,
-            text: formatted,
-          });
         }
+      } else {
+        // Post to main channel
+        await this.app.client.chat.postMessage({
+          token: SLACK_BOT_TOKEN,
+          channel: parsed.channel,
+          text: formatted,
+        });
       }
 
       logger.info({ jid, length: text.length }, 'Slack message sent');
